@@ -1,0 +1,21 @@
+# build outputs
+build/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.dll
+*.exp
+
+# vcpkg (keep local, don't push)
+vcpkg/
+vcpkg_installed/
+**/vcpkg_installed/
+
+# VSCode (optional)
+.vscode/

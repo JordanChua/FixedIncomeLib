@@ -1,5 +1,8 @@
 // Refer to https://www.quantlib.org/reference/class_quant_lib_1_1_calendar.html for documentation 
 #pragma once
+
+#include "fixedincomelib/Date/basics.h"
+
 #include <ql/time/date.hpp>
 #include <ql/time/period.hpp>
 #include <ql/time/schedule.hpp>
@@ -21,52 +24,52 @@ namespace fixedincomelib {
     };
     
     // add_period: calendar.advance(start, term, bdc, endOfMonth)
-    QuantLib::Date add_period(const QuantLib::Date& start_date,
-                                     const QuantLib::Period& term,
-                                     const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve),
-                                     QuantLib::BusinessDayConvention bdc = QuantLib::Following,
-                                     bool end_of_month = false) {
-        return cal.advance(start_date, term, bdc, end_of_month);
+    QuantLib::Date add_period(const Date& start_date,
+                              const Period& term,
+                              const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve),
+                              QuantLib::BusinessDayConvention bdc = QuantLib::Following,
+                              bool end_of_month = false) {
+        return cal.advance(start_date.get_date(), term, bdc, end_of_month);
     }
     
     // move_to_business_day: calendar.adjust(date, bdc)
-    QuantLib::Date move_to_business_day(const QuantLib::Date& input_date,
-                                              const QuantLib::Calendar& cal,
-                                              QuantLib::BusinessDayConvention bdc) {
-        return cal.adjust(input_date, bdc);
+    QuantLib::Date move_to_business_day(const Date& input_date,
+                                        const QuantLib::Calendar& cal,
+                                        const QuantLib::BusinessDayConvention bdc) {
+        return cal.adjust(input_date.get_date(), bdc);
     }
     
     // accrued: dayCounter.yearFraction(start, adjusted_end)
-    double accrued(const QuantLib::Date& start_date,
-                          const QuantLib::Date& end_date,
-                          const QuantLib::DayCounter& dc,
-                          QuantLib::BusinessDayConvention bdc = QuantLib::Following
-                          const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve)) {
+    double accrued(const Date& start_date,
+                   const Date& end_date,
+                   const QuantLib::DayCounter& dc,
+                   QuantLib::BusinessDayConvention bdc = QuantLib::Following,
+                   const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve)) {
         QuantLib::Date adjusted_end = move_to_business_day(end_date, cal, bdc);
-        return dc.yearFraction(start_date, adjusted_end);
+        return dc.yearFraction(start_date.get_date(), adjusted_end);
     }
     
-    bool is_business_day(const QuantLib::Date& d, const QuantLib::Calendar& cal) {
-        return cal.isBusinessDay(d);
+    bool is_business_day(const Date& d, const QuantLib::Calendar& cal) {
+        return cal.isBusinessDay(d.get_date());
     }
-    bool is_holiday(const QuantLib::Date& d, const QuantLib::Calendar& cal) {
-        return cal.isHoliday(d);
+    bool is_holiday(const Date& d, const QuantLib::Calendar& cal) {
+        return cal.isHoliday(d.get_date());
     }
-    bool is_end_of_month(const QuantLib::Date& d, const QuantLib::Calendar& cal) {
-        return cal.isEndOfMonth(d);
+    bool is_end_of_month(const Date& d, const QuantLib::Calendar& cal) {
+        return cal.isEndOfMonth(d.get_date());
     }
-    QuantLib::Date end_of_month(const QuantLib::Date& d, const QuantLib::Calendar& cal) {
-        return cal.endOfMonth(d);
+    QuantLib::Date end_of_month(const Date& d, const QuantLib::Calendar& cal) {
+        return cal.endOfMonth(d.get_date());
     }
 
     std::vector<ScheduleRow> make_schedule(
-        const QuantLib::Date& start_date,
-        const QuantLib::Date& end_date,
+        const Date& start_date,
+        const Date& end_date,
         const QuantLib::Period& accrual_period,
         const QuantLib::Calendar& holiday_convention,
         QuantLib::BusinessDayConvention business_day_convention,
         const QuantLib::DayCounter& accrual_basis,
-        const QuantLib::DateGeneration::Rule& rule = QuantLib::DateGeneration::Rule::Backward,
+        const std::string rule = "BACKWARD",
         bool end_of_month = false,
         bool fix_in_arrear = false,
         QuantLib::Period fixing_offset = QuantLib::Period(0, QuantLib::Days),
@@ -75,15 +78,17 @@ namespace fixedincomelib {
         const QuantLib::Calendar& payment_holiday_convention = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve)
     ) {
         // Rule for date generation is an enum, backward is from termination date to effective date (forward is reversed order)
+        QuantLib::DateGeneration::Rule ql_rule = (rule == "BACKWARD" ? QuantLib::DateGeneration::Backward : QuantLib::DateGeneration::Forward);
+
         // Initialise our schedule using given parameters
         QuantLib::Schedule sched(
-            start_date,
-            end_date,
+            start_date.get_date(),
+            end_date.get_date(),
             accrual_period,
             holiday_convention,
             business_day_convention,
             business_day_convention,
-            rule,
+            ql_rule,
             end_of_month
         ); 
     
@@ -115,7 +120,7 @@ namespace fixedincomelib {
             }
 
             // Compute accrued year fraction 
-            double acc = accrued(s, e,  accrual_basis, business_day_convention, holiday_convention)
+            double acc = accrued(Date(s), Date(e),  accrual_basis, business_day_convention, holiday_convention);
             out.push_back(ScheduleRow{ s, e, f, p, acc });
         }
 

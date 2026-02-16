@@ -7,11 +7,10 @@
 
 // your library headers (adjust paths to match your project)
 #include "fixedincomelib/apis/date.h"
-// #include "fixedincomelib/date_utils.hpp"       // add_period, move_to_business_day, accrued, etc.
-// #include "fixedincomelib/schedule_utils.hpp"   // make_schedule + CashflowRow
+// #include "fixedincomelib/Date/basics.h"
+
 
 int main() {
-    using namespace QuantLib;
     using namespace fixedincomelib;
 
     try {
@@ -27,12 +26,13 @@ int main() {
         std::string end_date = qfAddPeriod(start_date, term, hol, bdc, end_of_month);
 
         std::cout << "\n[AddPeriod]\n";
-        std::cout << "start_date=" << start_date << " term=" << term
-                  << " => end_date=" << end_date << "\n";
+        std::cout << "start_date = " << start_date << " term = " << term
+                  << " => end_date = " << end_date << "\n";
 
         // --------- 2) Accrued -----------
         std::string accrual_basis = "ACT/ACT";
-        double yf = qfAccrued(start_date, end_date, accrual_basis, bdc, hol);
+        std::string acc_end_date = "25-08-2025";
+        double yf = qfAccrued(start_date, acc_end_date, accrual_basis, bdc, hol);
 
         std::cout << "\n[Accrued]\n";
         std::cout << "start=" << start_date << " end=" << end_date
@@ -62,8 +62,8 @@ int main() {
         std::cout << eom_test2 << " => " << (qfIsEndOfMonth(eom_test2, hol) ? "true" : "false") << "\n";
 
         // --------- 7) EndOfMonth -----------
-        std::string eom_input = "01-01-2025"
-        std::string eom = qfEndOfMonth(eom_input)
+        std::string eom_input = "01-01-2025";
+        std::string eom = qfEndOfMonth(eom_input, hol);
         std::cout << "\n[EndOfMonth]\n";
         std::cout << eom_input << " => " << eom << "\n";
 
@@ -71,29 +71,31 @@ int main() {
         std::string sched_start = "25-05-2025";
         std::string sched_end   = "30-01-2027";
 
+        // Accrual details + conventions
         std::string acc_period = "6M";  
         std::string acc_basis = "ACT/360";
-        DayCounter sched_dc = daycounter_from_string(sched_dc_s);
-
-        std::string rule_s = "BACKWARD";
+        std::string acc_hol = "USGS";
+        std::string acc_bdc = "F";
+        
+        // Rule + EOM and fix in arrear
+        std::string rule = "BACKWARD";
         bool sched_eom = false;
         bool fix_in_arrear = true;
 
-        Period fixing_offset("1D");
-        Period payment_offset("2D");
+        // Offsets + payment conventions
+        std::string fixing_offset = "1D";
+        std::string payment_offset = "2D";
+        std::string pay_bdc = "F";
+        std::string pay_cal = "USGS";
 
-        // payment conventions
-        BusinessDayConvention pay_bdc = bdc_from_string("F");
-        Calendar pay_cal = calendar_from_string("USGS");
-
-        auto rows = make_schedule(
+        std::string output = qfMakeSchedule(
             sched_start,
             sched_end,
-            accrual_period,
-            cal,                 // accrual holiday convention
-            bdc,                 // accrual business day convention
-            sched_dc,            // accrual basis
-            rule_s,
+            acc_period,
+            acc_hol,                // accrual holiday convention
+            acc_bdc,                // accrual business day convention
+            acc_basis,              // accrual basis
+            rule,
             sched_eom,
             fix_in_arrear,
             fixing_offset,
@@ -104,20 +106,12 @@ int main() {
 
         std::cout << "\n[CreateSchedule]\n";
         std::cout << "start=" << sched_start << " end=" << sched_end
-                  << " period=" << accrual_period << " dc=" << sched_dc_s
-                  << " rule=" << rule_s << " fix_in_arrear=" << (fix_in_arrear ? "true" : "false")
+                  << " period=" << acc_period << " acc_basis =" << acc_basis
+                  << " rule=" << rule << " fix_in_arrear=" << (fix_in_arrear ? "true" : "false")
                   << " fixing_offset=" << fixing_offset << " payment_offset=" << payment_offset
                   << "\n";
 
-        std::cout << "Rows: " << rows.size() << "\n";
-        std::cout << "StartDate, EndDate, FixingDate, PaymentDate, Accrued\n";
-        for (const auto& r : rows) {
-            std::cout << r.startDate << ", "
-                      << r.endDate << ", "
-                      << r.fixingDate << ", "
-                      << r.paymentDate << ", "
-                      << r.accrued << "\n";
-        }
+        std::cout << output << "\n";
 
         std::cout << "\nAll tests completed.\n";
         return 0;
@@ -127,3 +121,42 @@ int main() {
         return 1;
     }
 }
+
+/* 
+Output of this test file 
+
+=== Test All Kinds of Date Functions ===
+
+[AddPeriod]
+start_date = 25-05-2025 term = 3M => end_date = August 25th, 2025
+
+[Accrued]
+start=25-05-2025 end=August 25th, 2025 dc=ACT/ACT => yearFraction=0.252055
+
+[MoveToBusinessDay]
+input=21-12-2025 => adjusted=December 22nd, 2025
+
+[IsBusinessDay]
+21-12-2025 => false
+
+[IsHoliday]
+01-01-2026 => true
+
+[IsEndOfMonth]
+21-12-2025 => false
+31-12-2025 => true
+
+[EndOfMonth]
+01-01-2025 => January 31st, 2025
+
+[CreateSchedule]
+start=25-05-2025 end=30-01-2027 period=6M acc_basis =ACT/360 rule=BACKWARD fix_in_arrear=true fixing_offset=1D payment_offset=2D
+StartDate, EndDate, FixingDate, PaymentDate, Accrued
+May 27th, 2025,July 30th, 2025,July 31st, 2025,August 1st, 2025,0.177778
+July 30th, 2025,January 30th, 2026,February 2nd, 2026,February 3rd, 2026,0.511111
+January 30th, 2026,July 30th, 2026,July 31st, 2026,August 3rd, 2026,0.502778
+July 30th, 2026,February 1st, 2027,February 2nd, 2027,February 3rd, 2027,0.516667
+
+
+All tests completed.
+*/

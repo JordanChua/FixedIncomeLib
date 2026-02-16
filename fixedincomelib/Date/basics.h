@@ -2,6 +2,7 @@
 
 #include <ql/time/date.hpp>
 #include <ql/time/period.hpp>
+#include <ql/utilities/dataparsers.hpp>
 
 #include <variant>
 #include <string>
@@ -21,11 +22,14 @@ namespace fixedincomelib {
             // Here string_view is a non-owning view (pointer + length) of the string that provides read-only interface
             // However we need to ensure underlying outlives string_view object to avoid dangling pointers
             explicit Date(const std::string_view iso): d_(date_from_iso(iso)){} 
+            void validate_dd_mm_yyyy(std::string_view s);
+            QuantLib::Date date_from_iso(std::string_view iso);
 
-        
+            //Accesor
+            QuantLib::Date get_date() const {return d_;}
         private: 
             QuantLib::Date d_;
-    }
+    };
 
     // The period class represents a relative duration of time, has a natural number and units of length(like D, W, M, Y)
     using Period = QuantLib::Period;
@@ -41,11 +45,10 @@ namespace fixedincomelib {
             explicit TermOrTerminationDate(std::string_view s) {
                  // If it contains '-', treat as date; else treat as tenor.
                 if (s.find('-') != std::string_view::npos) {
-                    v_ = Date(s);
+                    val_ = Date(s);
                 } else {
-                    // QuantLib can parse tenors like "3M", "1Y" via PeriodParser.
-                    // But Period has a ctor from std::string in C++ QuantLib.
-                    v_ = QuantLib::Period(std::string(s));
+                    // QuantLib can parse tenors like "3M", "1Y" via PeriodParser (unfortunately no constructor for strings in c++)
+                    val_ = Period(QuantLib::PeriodParser::parse(std::string(s)));
                 }
             }
 
@@ -55,13 +58,13 @@ namespace fixedincomelib {
             explicit TermOrTerminationDate(const Date& d): val_(d) {};
             
             // std::holds alternative checks if variant holds the alternative type given
-            bool is_term() const { return std::holds_alternative<QuantLib::Period>(v_); }
-            bool is_date() const { return std::holds_alternative<Date>(v_); }
+            bool is_term() const { return std::holds_alternative<Period>(val_); }
+            bool is_date() const { return std::holds_alternative<Date>(val_); }
 
             // Accessors
             const Date&   get_date() const;
             const Period& get_term() const;
         
-    }
+    };
 }
 

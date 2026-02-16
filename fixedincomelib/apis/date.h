@@ -15,18 +15,27 @@
 #include <string_view>
 
 namespace fixedincomelib { 
+    // Convert QuantLib Date object to string
+    std::string to_iso(const QuantLib::Date& d) {
+        std::ostringstream oss;
+        oss << QuantLib::io::long_date(d);
+        return oss.str();
+    }
+
+    // Functions that take strings as inputs and returns a string as an output (mainly for viewing)
+
     std::string qfAddPeriod(std::string start_date,
                             std::string term ,
                             std::string holiday_convention = "NONE",
                             std::string business_day_convention = "NONE",
                             bool end_of_month = false) {
-        QuantLib::Date date = Date(start_date);
-        QuantLib::Period period = Period(term);
+        Date start = Date(start_date);
+        QuantLib::Period period = Period(QuantLib::PeriodParser::parse(std::string(term)));
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention bdc = bdc_from_string(business_day_convention);
 
-        QuantLib::Date end_date = add_period(date, period, cal, bdc, end_of_month);
-        return QuantLib::io::long_date(end_date);
+        QuantLib::Date end_date = add_period(start, period, cal, bdc, end_of_month);
+        return to_iso(end_date);
     }
 
     // qfAccrued(start_date, end_date, dc="NONE", bdc="NONE", hol="NONE") -> double
@@ -35,60 +44,60 @@ namespace fixedincomelib {
                      std::string accrual_basis = "NONE",
                      std::string business_day_convention = "NONE",
                      std::string holiday_convention = "NONE") {
-        QuantLib::Date start = Date(start_date);
-        QuantLib::Date end = Date(end_date);
+        Date start = Date(start_date);
+        Date end = Date(end_date);
         QuantLib::DayCounter dc  = accrualbasis_from_string(accrual_basis);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention bdc = bdc_from_string(business_day_convention);
 
-        return accrued(start, end, dc, cal, bdc);
+        return accrued(start, end, dc, bdc, cal);
     }
 
     // qfMoveToBusinessDay(date, bdc, hol) -> ISO string
     std::string qfMoveToBusinessDay(std::string input_date,
                                     std::string business_day_convention,
                                     std::string holiday_convention) {
-        QuantLib::Date d = Date(input_date);;
+        Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention bdc = bdc_from_string(business_day_convention);
 
         QuantLib::Date moved = move_to_business_day(d, cal, bdc);
-        return QuantLib::io::long_date(moved);
+        return to_iso(moved);
     }
 
     // qfIsBusinessDay(date, hol) -> bool
     inline bool qfIsBusinessDay(std::string input_date,
                                 std::string holiday_convention) {
-        QuantLib::Date d = Date(input_date);
+        Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
-        return cal.isBusinessDay(d);
+        return is_business_day(d, cal);
     }
 
     // qfIsHoliday(date, hol) -> bool
     inline bool qfIsHoliday(std::string input_date,
                             std::string holiday_convention) {
-        QuantLib::Date d = Date(input_date);
+        Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
-        return cal.isHoliday(d);
+        return is_holiday(d, cal);
     }
 
     // qfIsEndOfMonth(date, hol) -> bool
     inline bool qfIsEndOfMonth(std::string input_date,
                                std::string holiday_convention) {
-        QuantLib::Date d = Date(input_date);
+        Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
-        return cal.isEndOfMonth(d);
+        return is_end_of_month(d, cal);
     }
 
     // qfEndOfMonth(date, hol) -> ISO string
     inline std::string qfEndOfMonth(std::string input_date,
                                     std::string holiday_convention) {
-        QuantLib::Date d = Date(input_date);
+        Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
-        return QuantLib::io::long_date(cal.endOfMonth(d));
+        return to_iso(end_of_month(d, cal));
     }
     
-    std::vector<ScheduleRow> qfCreateSchedule(
+    std::string qfMakeSchedule(
         std::string start_date,
         std::string end_date,
         std::string accrual_period,
@@ -103,21 +112,21 @@ namespace fixedincomelib {
         std::string payment_business_day_convention = "F",
         std::string payment_holiday_convention = "USGS") {
 
-        QuantLib::Date s  = Date(start_date);
-        QuantLib::Date e  = Date(end_date);
+        Date s  = Date(start_date);
+        Date e  = Date(end_date);
 
-        QuantLib::Period acc_period = Period(accrual_period);
-        QuantLib::Period fix_off = Period(fixing_offset);
-        QuantLib::Period pay_off = Period(payment_offset);
+        QuantLib::Period acc_period = QuantLib::PeriodParser::parse(accrual_period);
+        QuantLib::Period fix_off    = QuantLib::PeriodParser::parse(fixing_offset);
+        QuantLib::Period pay_off    = QuantLib::PeriodParser::parse(payment_offset);
 
         QuantLib::Calendar accrualCal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention accrualBdc = bdc_from_string(business_day_convention);
-        QuantLib::DayCounter dc = daycounter_from_string(accrual_basis);
+        QuantLib::DayCounter dc = accrualbasis_from_string(accrual_basis);
 
         QuantLib::Calendar payCal = calendar_from_string(payment_holiday_convention);
         QuantLib::BusinessDayConvention payBdc = bdc_from_string(payment_business_day_convention);
 
-        vector<ScheduleRow> schedule = make_schedule(
+        std::vector<ScheduleRow> schedule = make_schedule(
             s, e, acc_period,
             accrualCal, accrualBdc, dc,
             rule,
@@ -130,7 +139,7 @@ namespace fixedincomelib {
         );
 
         std::string out = "StartDate, EndDate, FixingDate, PaymentDate, Accrued\n";
-        for (const auto& r : rows) {
+        for (const auto& r : schedule) {
             out += to_iso(r.startDate) + ",";
             out += to_iso(r.endDate) + ",";
             out += to_iso(r.fixingDate) + ",";

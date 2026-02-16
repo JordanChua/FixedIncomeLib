@@ -1,4 +1,4 @@
-#include "basics.h"
+#include "fixedincomelib/market/basics.h"
 
 // concrete currencies
 #include <ql/currencies/america.hpp>
@@ -33,14 +33,14 @@
 // If we do need objects to add to a collection then wrapper classes may be more appropriate
 
 namespace fixedincomelib {
-    '''
+    /*
     Parsing Functions for Currency
-    '''
-    inline QuantLib::Currency currency_from_string(std::string_view ccy) {
+    */
+    QuantLib::Currency currency_from_string(std::string_view ccy) {
         // Copy string_view into string and convert the chars to uppercase 
         std::string up(ccy); 
         for (auto ch : up) // Modify each character in our string by converting it to uppercase 
-            ch = static_cast<char>(std::upper(static_cast<unsigned char>(ch))); //std::upper expects unsigned char (for safety)
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch))); //std::upper expects unsigned char (for safety)
         
         if (up == "USD")    
             return QuantLib::USDCurrency();
@@ -49,7 +49,7 @@ namespace fixedincomelib {
         else if (up == "GBP")
             return QuantLib::GBPCurrency();
         else if (up == "EUR")
-            return QuantLib::EURCurency();
+            return QuantLib::EURCurrency();
         else if (up == "JPY")
             return QuantLib::JPYCurrency();
         else if (up == "AUD")
@@ -59,30 +59,29 @@ namespace fixedincomelib {
     }
 
     // Simple accessor to get currency code 
-    inline std::string get_currency_code(QuantLib::Currency ccy) {
+    std::string get_currency_code(QuantLib::Currency ccy) {
         return ccy.code();
     }
 
-    '''
-    Parsing Functions for Business Day Conventions
-    '''
-    inline QuantLib::BusinessDayConvention bdc_from_string(std::string_view s == "NONE") {
-    std::string up(s);
-    for (auto& ch : up) 
-        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-
-    if (up == "MF") 
-        return QuantLib::ModifiedFollowing;
-    else if (up == "F")  
-        return QuantLib::Following;
-    else if (up == "P" || up == "NONE") 
-        return QuantLib::Preceding;
-    else
-        throw std::invalid_argument("Unsupported business day convention: " + std::string(s));
+    /*
+    Parsing Functions for Currency Business Day Conventions
+    */
+    QuantLib::BusinessDayConvention bdc_from_string(std::string_view s) {
+        std::string up(s);
+        for (auto& ch : up) 
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+        if (up == "MF") 
+            return QuantLib::ModifiedFollowing;
+        else if (up == "F")  
+            return QuantLib::Following;
+        else if (up == "P" || up == "NONE") 
+            return QuantLib::Preceding;
+        else
+            throw std::invalid_argument("Unsupported business day convention: " + std::string(s));
     }
 
     // Accessor to get string from BusinessDayConvention 
-    inline std::string bdc_to_string(QuantLib::BusinessDayConvention bdc) {
+    std::string bdc_to_string(QuantLib::BusinessDayConvention bdc) {
         switch (bdc) {
             case QuantLib::ModifiedFollowing: 
                 return "MF";
@@ -95,10 +94,10 @@ namespace fixedincomelib {
         }
     }
 
-    '''
+    /*
     Parsing Functions for Holiday Conventions
-    '''
-    inline QuantLib::Calendar calendar_from_string(std::string_view s = "NONE") {
+    */
+    QuantLib::Calendar calendar_from_string(std::string_view s) {
         std::string up(s);
         for (auto& ch : up) 
             ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
@@ -129,27 +128,27 @@ namespace fixedincomelib {
             throw std::invalid_argument("Unsupported holiday convention: " + std::string(s));
     }
     
-    '''
-    Parsing Functions for Accrual Basis (Extension of DayCounter)
-    '''
-    inline QuantLib::DayCounter accrualbasis_from_string(std::string_view s = "NONE") {
+    /*
+    Parsing Functions for Day Counter (Accrual Basis)
+    */
+    QuantLib::DayCounter accrualbasis_from_string(std::string_view s) {
         std::string up(s);
         for (auto& ch : up) 
-            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));\
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
 
         if (up == "NONE")
             return QuantLib::SimpleDayCounter(); // For theoretical calculations
-        else if (up == "ACTUAL/365")
+        else if (up == "ACT/365")
             return QuantLib::Actual365Fixed(); 
-        else if (up == "ACTUAL/ACTUAL")
-            return QuantLib::ActualActuak(QuantLib::ActualActual::ISDA);
-        else if (up == "ACTUAL/360")
+        else if (up == "ACT/ACT")
+            return QuantLib::ActualActual(QuantLib::ActualActual::ISDA);
+        else if (up == "ACT/360")
             return QuantLib::Actual360();
         else if (up == "30/360")
-            return QuantLib::Thirty360();
+            return QuantLib::Thirty360(QuantLib::Thirty360::ISDA);
         else if (up == "BUSINESS252")
             return QuantLib::Business252();
-        else:
-            throw std::invalid_argument("Unsupported Day Counter: " + std::string(sw));
+        else
+            throw std::invalid_argument("Unsupported Day Counter: " + std::string(s));
     }
 }

@@ -13,6 +13,10 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <array>
+#include <algorithm>
+#include <sstream>
+#include <iomanip>
 
 namespace fixedincomelib { 
     // Convert QuantLib Date object to string
@@ -23,7 +27,6 @@ namespace fixedincomelib {
     }
 
     // Functions that take strings as inputs and returns a string as an output (mainly for viewing)
-
     std::string qfAddPeriod(std::string start_date,
                             std::string term ,
                             std::string holiday_convention = "NONE",
@@ -34,8 +37,8 @@ namespace fixedincomelib {
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention bdc = bdc_from_string(business_day_convention);
 
-        QuantLib::Date end_date = add_period(start, period, cal, bdc, end_of_month);
-        return to_iso(end_date);
+        Date end_date = add_period(start, period, cal, bdc, end_of_month);
+        return end_date.get_date_str();
     }
 
     // qfAccrued(start_date, end_date, dc="NONE", bdc="NONE", hol="NONE") -> double
@@ -61,8 +64,8 @@ namespace fixedincomelib {
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention bdc = bdc_from_string(business_day_convention);
 
-        QuantLib::Date moved = move_to_business_day(d, cal, bdc);
-        return to_iso(moved);
+        Date moved = move_to_business_day(d, cal, bdc);
+        return moved.get_date_str();
     }
 
     // qfIsBusinessDay(date, hol) -> bool
@@ -94,38 +97,36 @@ namespace fixedincomelib {
                                     std::string holiday_convention) {
         Date d = Date(input_date);
         QuantLib::Calendar cal = calendar_from_string(holiday_convention);
-        return to_iso(end_of_month(d, cal));
+        return end_of_month(d, cal).get_date_str();
     }
     
-    std::string qfMakeSchedule(
-        std::string start_date,
-        std::string end_date,
-        std::string accrual_period,
-        std::string holiday_convention,
-        std::string business_day_convention,
-        std::string accrual_basis,
-        std::string rule = "BACKWARD",
-        bool end_of_month = false,
-        bool fix_in_arrear = false,
-        std::string fixing_offset = "0D",
-        std::string payment_offset = "0D",
-        std::string payment_business_day_convention = "F",
-        std::string payment_holiday_convention = "USGS") {
-
-        Date s  = Date(start_date);
-        Date e  = Date(end_date);
-
+    std::string qfMakeSchedule(std::string start_date,
+                                std::string end_date,
+                                std::string accrual_period,
+                                std::string holiday_convention,
+                                std::string business_day_convention,
+                                std::string accrual_basis,
+                                std::string rule = "BACKWARD",
+                                bool end_of_month = false,
+                                bool fix_in_arrear = false,
+                                std::string fixing_offset = "0D",
+                                std::string payment_offset = "0D",
+                                std::string payment_business_day_convention = "F",
+                                std::string payment_holiday_convention = "USGS") {
+        Date s(start_date);
+        Date e(end_date);
+    
         QuantLib::Period acc_period = QuantLib::PeriodParser::parse(accrual_period);
         QuantLib::Period fix_off    = QuantLib::PeriodParser::parse(fixing_offset);
         QuantLib::Period pay_off    = QuantLib::PeriodParser::parse(payment_offset);
-
+    
         QuantLib::Calendar accrualCal = calendar_from_string(holiday_convention);
         QuantLib::BusinessDayConvention accrualBdc = bdc_from_string(business_day_convention);
         QuantLib::DayCounter dc = accrualbasis_from_string(accrual_basis);
-
+    
         QuantLib::Calendar payCal = calendar_from_string(payment_holiday_convention);
         QuantLib::BusinessDayConvention payBdc = bdc_from_string(payment_business_day_convention);
-
+    
         std::vector<ScheduleRow> schedule = make_schedule(
             s, e, acc_period,
             accrualCal, accrualBdc, dc,
@@ -137,16 +138,59 @@ namespace fixedincomelib {
             payBdc,
             payCal
         );
-
-        std::string out = "StartDate, EndDate, FixingDate, PaymentDate, Accrued\n";
+    
+        // ---------- aligned output (returns a string) ----------
+        auto fmt_double = [](double x, int prec = 6) {
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(prec) << x;
+            return oss.str();
+        };
+    
+        const std::vector<std::string> headers = {
+            "StartDate","EndDate","FixingDate","PaymentDate","Accrued"
+        };
+    
+        std::vector<std::array<std::string,5>> data;
+        data.reserve(schedule.size());
+    
         for (const auto& r : schedule) {
-            out += to_iso(r.startDate) + ",";
-            out += to_iso(r.endDate) + ",";
-            out += to_iso(r.fixingDate) + ",";
-            out += to_iso(r.paymentDate) + ",";
-            out += std::to_string(r.accrued) + "\n";
+            data.push_back({
+                Date(r.startDate).get_date_str(),   // "dd-mm-yyyy"
+                Date(r.endDate).get_date_str(),
+                Date(r.fixingDate).get_date_str(),
+                Date(r.paymentDate).get_date_str(),
+                fmt_double(r.accrued, 6)
+            });
         }
-        return out;
+    
+        std::array<std::size_t,5> w{};
+        for (int j = 0; j < 5; ++j) w[j] = headers[j].size();
+        for (const auto& row : data)
+            for (int j = 0; j < 5; ++j)
+                w[j] = std::max(w[j], row[j].size());
+    
+        std::ostringstream out;
+    
+        // header
+        for (int j = 0; j < 5; ++j)
+            out << std::left << std::setw(static_cast<int>(w[j] + 2)) << headers[j];
+        out << "\n";
+    
+        // separator
+        for (int j = 0; j < 5; ++j)
+            out << std::string(w[j], '-') << "  ";
+        out << "\n";
+    
+        // rows
+        for (const auto& row : data) {
+            for (int j = 0; j < 5; ++j) {
+                if (j == 4) out << std::right << std::setw(static_cast<int>(w[j] + 2)) << row[j];
+                else        out << std::left  << std::setw(static_cast<int>(w[j] + 2)) << row[j];
+            }
+            out << "\n";
+        }
+    
+        return out.str();
     }
 }
 

@@ -31,8 +31,8 @@ int main() {
 
         // --------- 2) Accrued -----------
         std::string accrual_basis = "ACT/ACT";
-        std::string acc_end_date = "25-08-2025";
-        double yf = qfAccrued(start_date, acc_end_date, accrual_basis, bdc, hol);
+        // std::string acc_end_date = "25-08-2025";
+        double yf = qfAccrued(start_date, end_date, accrual_basis, bdc, hol);
 
         std::cout << "\n[Accrued]\n";
         std::cout << "start=" << start_date << " end=" << end_date
@@ -128,13 +128,13 @@ Output of this test file
 === Test All Kinds of Date Functions ===
 
 [AddPeriod]
-start_date = 25-05-2025 term = 3M => end_date = August 25th, 2025
+start_date = 25-05-2025 term = 3M => end_date = 25-08-2025
 
 [Accrued]
-start=25-05-2025 end=August 25th, 2025 dc=ACT/ACT => yearFraction=0.252055
+start=25-05-2025 end=25-08-2025 dc=ACT/ACT => yearFraction=0.252055
 
 [MoveToBusinessDay]
-input=21-12-2025 => adjusted=December 22nd, 2025
+input=21-12-2025 => adjusted=22-12-2025
 
 [IsBusinessDay]
 21-12-2025 => false
@@ -147,15 +147,16 @@ input=21-12-2025 => adjusted=December 22nd, 2025
 31-12-2025 => true
 
 [EndOfMonth]
-01-01-2025 => January 31st, 2025
+01-01-2025 => 31-01-2025
 
 [CreateSchedule]
 start=25-05-2025 end=30-01-2027 period=6M acc_basis =ACT/360 rule=BACKWARD fix_in_arrear=true fixing_offset=1D payment_offset=2D
-StartDate, EndDate, FixingDate, PaymentDate, Accrued
-May 27th, 2025,July 30th, 2025,July 31st, 2025,August 1st, 2025,0.177778
-July 30th, 2025,January 30th, 2026,February 2nd, 2026,February 3rd, 2026,0.511111
-January 30th, 2026,July 30th, 2026,July 31st, 2026,August 3rd, 2026,0.502778
-July 30th, 2026,February 1st, 2027,February 2nd, 2027,February 3rd, 2027,0.516667
+StartDate   EndDate     FixingDate  PaymentDate  Accrued   
+----------  ----------  ----------  -----------  --------
+27-05-2025  30-07-2025  31-07-2025  01-08-2025     0.177778
+30-07-2025  30-01-2026  02-02-2026  03-02-2026     0.511111
+30-01-2026  30-07-2026  31-07-2026  03-08-2026     0.502778
+30-07-2026  01-02-2027  02-02-2027  03-02-2027     0.516667
 
 
 All tests completed.

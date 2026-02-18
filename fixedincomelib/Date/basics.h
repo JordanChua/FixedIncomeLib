@@ -5,6 +5,8 @@
 #include <ql/utilities/dataparsers.hpp>
 
 #include <variant>
+#include <sstream>   // std::ostringstream
+#include <iomanip>   // std::setw, std::setfill
 #include <string>
 #include <string_view>
 #include <stdexcept>
@@ -22,11 +24,20 @@ namespace fixedincomelib {
             // Here string_view is a non-owning view (pointer + length) of the string that provides read-only interface
             // However we need to ensure underlying outlives string_view object to avoid dangling pointers
             explicit Date(const std::string_view iso): d_(date_from_iso(iso)){} 
+
+            // Functions for the constructor that takes in a string
             void validate_dd_mm_yyyy(std::string_view s);
             QuantLib::Date date_from_iso(std::string_view iso);
 
             //Accesor
             QuantLib::Date get_date() const {return d_;}
+            std::string get_date_str() const {
+                std::ostringstream oss;
+                oss << std::setw(2) << std::setfill('0') << d_.dayOfMonth() << "-"
+                    << std::setw(2) << std::setfill('0') << static_cast<int>(d_.month()) << "-"
+                    << d_.year();
+                return oss.str();
+            }
         private: 
             QuantLib::Date d_;
     };

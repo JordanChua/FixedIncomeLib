@@ -24,19 +24,19 @@ namespace fixedincomelib {
     };
     
     // add_period: calendar.advance(start, term, bdc, endOfMonth)
-    QuantLib::Date add_period(const Date& start_date,
+    Date add_period(const Date& start_date,
                               const Period& term,
                               const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve),
                               QuantLib::BusinessDayConvention bdc = QuantLib::Following,
                               bool end_of_month = false) {
-        return cal.advance(start_date.get_date(), term, bdc, end_of_month);
+        return Date(cal.advance(start_date.get_date(), term, bdc, end_of_month));
     }
     
     // move_to_business_day: calendar.adjust(date, bdc)
-    QuantLib::Date move_to_business_day(const Date& input_date,
+    Date move_to_business_day(const Date& input_date,
                                         const QuantLib::Calendar& cal,
                                         const QuantLib::BusinessDayConvention bdc) {
-        return cal.adjust(input_date.get_date(), bdc);
+        return Date(cal.adjust(input_date.get_date(), bdc));
     }
     
     // accrued: dayCounter.yearFraction(start, adjusted_end)
@@ -45,8 +45,8 @@ namespace fixedincomelib {
                    const QuantLib::DayCounter& dc,
                    QuantLib::BusinessDayConvention bdc = QuantLib::Following,
                    const QuantLib::Calendar& cal = QuantLib::UnitedStates(QuantLib::UnitedStates::FederalReserve)) {
-        QuantLib::Date adjusted_end = move_to_business_day(end_date, cal, bdc);
-        return dc.yearFraction(start_date.get_date(), adjusted_end);
+        Date adjusted_end = move_to_business_day(end_date, cal, bdc);
+        return dc.yearFraction(start_date.get_date(), adjusted_end.get_date());
     }
     
     bool is_business_day(const Date& d, const QuantLib::Calendar& cal) {
@@ -58,8 +58,8 @@ namespace fixedincomelib {
     bool is_end_of_month(const Date& d, const QuantLib::Calendar& cal) {
         return cal.isEndOfMonth(d.get_date());
     }
-    QuantLib::Date end_of_month(const Date& d, const QuantLib::Calendar& cal) {
-        return cal.endOfMonth(d.get_date());
+    Date end_of_month(const Date& d, const QuantLib::Calendar& cal) {
+        return Date(cal.endOfMonth(d.get_date()));
     }
 
     std::vector<ScheduleRow> make_schedule(
